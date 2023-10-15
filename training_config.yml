@@ -1,0 +1,23 @@
+Paths:
+  data: 'data'
+  results: 'result'
+
+Dataset:
+  MNIST: True
+  CIFAR10: False
+
+Optimizer:
+  SGD:
+    1:
+      Train: False
+      epoch: 1
+      param:
+        lr: 0.01
+
+  Adam:
+    1:
+      Train: True
+      epoch: 1
+      param:
+        lr: 0.01
+

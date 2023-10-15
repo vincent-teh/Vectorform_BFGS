@@ -4,3 +4,4 @@ models
 utils/__pycache__
 .vscode
 model_training/__pycache__
+result

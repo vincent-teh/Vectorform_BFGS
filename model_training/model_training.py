@@ -5,9 +5,11 @@ from torch.utils.data.dataloader import DataLoader
 import torch.nn as nn
 import numpy as np
 from tqdm import tqdm
-from typing import Literal, get_args, Dict
+from typing import Literal, get_args, Dict, List
 import torchvision
 import torchvision.transforms as Transforms
+import json
+import os
 
 
 def train_for_n_epochs(model: nn.Module,
@@ -20,9 +22,10 @@ def train_for_n_epochs(model: nn.Module,
                        ) -> tuple[list, list]:
 
     printfreq = int(len(training_dataloader) * 0.1)
-    loss = []
-    time = []
-    acc  = []
+    accuracies   = []
+    train_losses = []
+    train_times  = []
+    running_loss = 0
     for _ in range(epoch):
         start_time = time.time()
         print(f'Epoch #{epoch}')
@@ -38,20 +41,20 @@ def train_for_n_epochs(model: nn.Module,
 
             # Print, append the loss value and reset the running loss
             if i % printfreq == printfreq-1:
-                loss.append(running_loss/printfreq)
+                train_losses.append(running_loss/printfreq)
                 if verbose:
                     print(running_loss/printfreq)
                 running_loss = 0
-        time.append(time.time() - start_time) # In second
-        acc.append(testing_evaluation(model, testing_dataloader))
+        print(f'{optimizer.__class__.__name__}\'s loss == {train_losses[-1]}')
+        train_times.append(time.time() - start_time) # In second
+        accuracies.append(testing_evaluation(model, testing_dataloader))
 
-        print(f'{optimizer.__class__,__name__}\'s loss == {loss[-1]}')
-    return loss, acc, time
+    return train_losses, accuracies, train_times
 
 
 def testing_evaluation(model: nn.Module,
                        testing_dataloader: DataLoader):
-    n_correct = len(testing_dataloader)
+    n_correct = 0
     n_samples = 0
     with torch.no_grad():
         print('=========Start of testing for=========.')
@@ -60,6 +63,7 @@ def testing_evaluation(model: nn.Module,
             outputs = model(image)
             # value, index
             _, predictions = torch.max(outputs, 1)
+            n_samples += label.shape[0]
             n_correct += (predictions == label).sum().item()
 
         acc = 100.0 * n_correct / n_samples
@@ -70,7 +74,7 @@ def testing_evaluation(model: nn.Module,
 _DATASET = Literal['MNIST', 'CIFAR10']
 
 def get_dataloader(dataset: _DATASET, path: str, batch_size: int
-                   ) -> Dict["train": DataLoader, "test": DataLoader]:
+                   ):
 
     if dataset not in get_args(_DATASET):
         raise ValueError(f'Dataset {dataset} not supported')
@@ -84,12 +88,38 @@ def get_dataloader(dataset: _DATASET, path: str, batch_size: int
         dimension = 1
     if dataset == "MNIST":
         dataset_fn = torchvision.datasets.MNIST
+        size_after_pooling = 784
     elif dataset == 'CIFAR10':
         dataset_fn = torchvision.datasets.CIFAR10
+        size_after_pooling = 1024
     train = dataset_fn(root=path, train=True, download=True, transform=transform)
-    test  = dataset_fn(root=path, train=True, download=True, transform=transform)
+    test  = dataset_fn(root=path, train=False, download=True, transform=transform)
 
     return {"train": torch.utils.data.DataLoader(train, batch_size=batch_size),
-            "test":  torch.utils.data.DataLoader(test, batch_size=batch_size)}
+            "test":  torch.utils.data.DataLoader(test, batch_size=batch_size)}, \
+            dimension, size_after_pooling
 
 
+def save_to_json(filepath:str,
+                 filename: str,
+                 losses: List[float],
+                 accuracies: List[float],
+                 times: List[float]):
+    """
+    Save the training results into json file.
+
+    Args:
+        filepath (str): Folder containing the results.
+        filename (str): Name of the file.
+        losses (List[float]): List of loss value.
+        accuracies (List[float]): List of accuracy value.
+        times (List[float]): List of time taken for each epoch.
+    """
+    data = {'losses': losses,
+            'accuracies': accuracies,
+            'times': times}
+    if not os.path.exists(filepath):
+        os.mkdir(filepath)
+    filename = os.path.join(filepath, filename)
+    with open(filename, 'w') as file:
+        json.dump(data, file)
