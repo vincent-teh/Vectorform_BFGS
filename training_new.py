@@ -5,9 +5,18 @@ import yaml
 
 from model_training import ConvNet
 from torch.optim import SGD, Adam
+import torch.nn as nn
 
 
-def get_optimizer(model, name, param):
+def get_optimizer(model: nn.Module, name: str, param: dict):
+    """
+    Generates respective optimizer based on name given.
+
+    Args:
+        model (nn.Module): Neural network model.
+        name (str): Name of the optimizer.
+        param (dict): Dictionary of parameters of the optimizer.
+    """
     if name == 'SGD':
         return SGD(model.parameters(), **param)
     if name == 'Adam':
@@ -27,11 +36,11 @@ def main():
         optimizers = data['Optimizer']
 
     criteria = nn.CrossEntropyLoss()
-    for dataset in datasets:
+    for dataset in datasets:    # Train for all enabled datasets.
         trainloader, n_channel, size_after_pool = \
             model_training.get_dataloader(dataset, PATHS['data'], BATCH_SIZE)
-        for optimizer_name, param_set in optimizers.items():
-            for _, params in param_set.items():
+        for optimizer_name, param_set in optimizers.items():    # Train for all optimizers.
+            for _, params in param_set.items():                 # Train for all optimizers' params.
                 if not params['Train']:
                     continue
                 model = ConvNet(n_channel, size_after_pool)
@@ -46,6 +55,7 @@ def main():
                                                       trainloader['test'],
                                                       verbose=True)
 
+                # File saving after trained for n epochs.
                 filepath = os.path.join(PATHS['results'], optimizer_name)
                 filename = optimizer_name
                 for _, value in params['param'].items():

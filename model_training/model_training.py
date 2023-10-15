@@ -20,6 +20,24 @@ def train_for_n_epochs(model: nn.Module,
                        testing_dataloader: DataLoader,
                        verbose: bool = False
                        ) -> tuple[list, list]:
+    """
+    Train the model for given number of epochs.
+
+    Args:
+        model (nn.Module): Model of the neural network.
+        optimizer (Optimizer): Choice of optimizer.
+        epoch (int): no. of epoch to be trained.
+        criteria (_type_): loss function of selected.
+        training_dataloader (DataLoader): training data loader.
+        testing_dataloader (DataLoader): testing data loader.
+        verbose (bool, optional): Shows loss value per printing frequency. Defaults to False.
+
+    Returns:
+        train_losses (list): List of training losses.
+        accuracies (list): List of testing accuracy.
+        train_times (list): List of training time needed per epochs.
+    """
+
 
     printfreq = int(len(training_dataloader) * 0.1)
     accuracies   = []
@@ -54,6 +72,16 @@ def train_for_n_epochs(model: nn.Module,
 
 def testing_evaluation(model: nn.Module,
                        testing_dataloader: DataLoader):
+    """
+    Evaluate the model's accuracy.
+
+    Args:
+        model (nn.Module): Model of the neural network.
+        testing_dataloader (DataLoader): Testing dataloader.
+
+    Returns:
+        float: testing accuracy in percentage.
+    """
     n_correct = 0
     n_samples = 0
     with torch.no_grad():
