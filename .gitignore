@@ -2,3 +2,5 @@ conjgrad/__pycache__
 data
 models
 utils/__pycache__
+.vscode
+model_training/__pycache__

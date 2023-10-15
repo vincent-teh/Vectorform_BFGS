@@ -4,8 +4,9 @@ from conjgrad import ConjGrad
 
 if __name__ == "__main__":
     INIT = (2.,2.)
-    MAX_ITER = 35
-    path_cg = run_optimization(INIT,ConjGrad,MAX_ITER, 1e-8, variant='HS')
+    MAX_ITER = 100
+    path_cg = run_optimization(
+        INIT,ConjGrad,MAX_ITER, 1e-8, variant='HS',weight_decay=1e-4)
     print(path_cg)
     paths = [path_cg,]
     # anim  = create_animation(Rosenbrock,

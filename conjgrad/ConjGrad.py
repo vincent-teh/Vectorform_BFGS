@@ -7,25 +7,40 @@ from functools import reduce
 from torch import Tensor
 from torch import linalg as LA
 
-from .utils_cg import _strong_wolfe
+from two_order_utils import _strong_wolfe
 
 
-_LIST_VARIANTS      = Literal['FR', 'PRP','DY','HS']
-_LIST_LINE_SEARCH   = Literal["BackTrack", "StrongWolfe"]
+_LIST_VARIANTS = Literal['FR', 'PRP', 'DY', 'HS']
+_LIST_LINE_SEARCH = Literal["BackTrack", "StrongWolfe"]
 _params_t = Union[Iterable[Tensor], Iterable[Dict[str, Any]]]
 
 
 class ConjGrad(Optimizer):
     def __init__(self, params: _params_t,
-                 variant: _LIST_VARIANTS ='PRP',
-                 line_search: _LIST_LINE_SEARCH ='StrongWolfe') -> None:
+                 variant: _LIST_VARIANTS = 'PRP',
+                 weight_decay: float = 0,
+                 line_search: _LIST_LINE_SEARCH = 'StrongWolfe') -> None:
+        """
+        Nonlinear Conjugate Gradient
+
+        Args:
+            variant (_LIST_VARIANTS, optional): Variant of CG momentum. Defaults to 'PRP'.
+            weight_decay (float | None, optional): Performs regularization when provided. Defaults to None.
+            line_search (_LIST_LINE_SEARCH, optional): Line search algorithm to be used. Defaults to 'StrongWolfe'.
+        """
         if variant not in get_args(_LIST_VARIANTS):
-            raise ValueError(f'Variant must be of type {get_args(_LIST_VARIANTS)}')
+            raise ValueError(
+                f'Variant must be of type {get_args(_LIST_VARIANTS)}')
         if line_search not in get_args(_LIST_LINE_SEARCH):
-            raise ValueError(f'Line search must be of type {get_args(_LIST_VARIANTS)}')
+            raise ValueError(
+                f'Line search must be of type {get_args(_LIST_VARIANTS)}')
+        if weight_decay < 0:
+            raise ValueError(
+                f"Invalid weight decay value {weight_decay}. Must be positive.")
 
         defaults = {'variant': variant,
-                    'line_search': line_search}
+                    'line_search': line_search,
+                    'weight_decay': weight_decay}
 
         super().__init__(params, defaults)
         self._params = self.param_groups[0]['params']
@@ -43,9 +58,18 @@ class ConjGrad(Optimizer):
             views.append(view)
         return torch.cat(views, 0)
 
+    def _gather_flat_param(self):
+        return torch.cat([p.data.view(-1) for p in self._params], 0)
+        views = []
+        for p in self._params:
+            view = p.data.view(-1)
+            views.append(view)
+        return torch.cat(views, 0)
+
     def _numel(self):
         if self._numel_cache is None:
-            self._numel_cache = reduce(lambda total, p: total + p.numel(), self._params, 0)
+            self._numel_cache = reduce(
+                lambda total, p: total + p.numel(), self._params, 0)
         return self._numel_cache
 
     def _clone_param(self):
@@ -62,7 +86,6 @@ class ConjGrad(Optimizer):
         flat_grad = self._gather_flat_grad()
         self._set_param(x)
         return loss, flat_grad
-
 
     @torch.no_grad()
     def _add_grad(self, step_size: float, update: Tensor) -> None:
@@ -87,12 +110,11 @@ class ConjGrad(Optimizer):
             offset += numel
         assert offset == self._numel()
 
-
     def _LineSearch_n_Update(self, closure: Callable[[], float],
                              d: Tensor,
                              g: Tensor,
                              loss: Any,
-                             cond: str ='BackTrack',
+                             cond: str = 'BackTrack',
                              max_iter: int = 100) -> None:
         '''Line search algorithm
         ------
@@ -113,14 +135,15 @@ class ConjGrad(Optimizer):
             alpha_old = 1
             gamma = 0.0001
             beta = 0.8
-            R = loss + gamma*alpha_old*g.dot(d)    # Right hand side of the condition
-            self._add_grad(1,d)
+            # Right hand side of the condition
+            R = loss + gamma*alpha_old*g.dot(d)
+            self._add_grad(1, d)
             i = 0
             while closure() > R and i < max_iter:
                 alpha_new = alpha_old*beta
                 for p in self._params:
                     # p - ((alpha_new - alpha_old)*d)
-                    self._add_grad((alpha_new - alpha_old),d)
+                    self._add_grad((alpha_new - alpha_old), d)
                 alpha_old = alpha_new
                 i = i + 1
         elif cond == 'StrongWolfe':
@@ -128,20 +151,20 @@ class ConjGrad(Optimizer):
             x_init = self._clone_param()
             # directional derivative
             gtd = g.dot(d)  # g * d
+
             def obj_func(x, t, d):
                 return self._directional_evaluate(closure, x, t, d)
             loss, g, alpha, ls_func_evals = _strong_wolfe(
-                        obj_func, x_init, alpha, d, loss, g, gtd)
+                obj_func, x_init, alpha, d, loss, g, gtd)
             self._add_grad(alpha, d)
         else:
             raise ValueError("The supplied line search was not supported")
 
-
     def _CalcStepSize(self, g: Tensor,
                       g_prev: Tensor,
-                      d: Tensor=None,
+                      d: Tensor = None,
                       epsilon: float = 1e-5,
-                      option: str ='PR') -> float:
+                      option: str = 'PR') -> float:
         '''CG Momentum Calculation
         ------
         Parameters
@@ -170,7 +193,6 @@ class ConjGrad(Optimizer):
             raise ValueError("The supplied CG variant is not supported.")
         return max(beta, 0)
 
-
     def step(self, closure: Callable[[], float] | None = ...) -> float | None:
         ''' Conjugate Gradient Steps
         ----------------------------
@@ -184,12 +206,12 @@ class ConjGrad(Optimizer):
             loss = closure()
 
         if not self.state:      # Initialise during the first iteration
-            self.state['step']  = 0
+            self.state['step'] = 0
             g_prev = self._gather_flat_grad()
             d = g_prev.clone().neg()
             self.state['skip'] = False
         else:
-            d = self.state['d'] # Previous descent direction
+            d = self.state['d']  # Previous descent direction
             g_prev = self.state['g']
             self.state['step'] = self.state['step'] + 1
 
@@ -197,16 +219,20 @@ class ConjGrad(Optimizer):
 
         if self.state['skip'] == False:
             _ = self._LineSearch_n_Update(
-                    closure, d, g_prev, loss, cond=group['line_search'])
+                closure, d, g_prev, loss, cond=group['line_search'])
 
         loss = closure()
         g = self._gather_flat_grad()
         if LA.norm(g) < epsilon_stop:   # Skipped update.
             self.state['skip'] = True
             return loss
+        if group['weight_decay'] > 0:
+            def gather_flat_param(): return torch.cat(
+                [p.data.view(-1) for p in self._params], 0)
+            g.add_(gather_flat_param(), alpha=group['weight_decay'])
 
         self.state['skip'] = False
-        beta = self._CalcStepSize(g,g_prev,d,option=group['variant'])
+        beta = self._CalcStepSize(g, g_prev, d, option=group['variant'])
         d = g.neg() + beta*d
         self.state['d'] = d
         self.state['g'] = g
