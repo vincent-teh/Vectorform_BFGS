@@ -22,7 +22,16 @@ def _gather_flat_grad(optimizer: Optimizer):
     return torch.cat(views, 0)
 
 
-def _gather_flat_param(optimizer: Optimizer):
+def _gather_flat_param(optimizer: Optimizer) -> Tensor:
+    """
+    Get flatten parameters of the inputs.
+
+    Args:
+        optimizer (Optimizer): self, optimizer of selected.
+
+    Returns:
+        Tensor: Flatten inputs.
+    """
     views = [p.data.view(-1) for p in optimizer._params]
     return torch.cat(views, 0)
 

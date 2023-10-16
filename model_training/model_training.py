@@ -46,7 +46,7 @@ def train_for_n_epochs(model: nn.Module,
     running_loss = 0
     for iteration in range(epoch):
         start_time = time.time()
-        print(f'Epoch #{epoch}')
+        print(f'Epoch #{iteration}')
         for i, (inputs, labels) in enumerate(training_dataloader):
             def closure():
                 outputs = model(inputs)
@@ -69,7 +69,6 @@ def train_for_n_epochs(model: nn.Module,
         if torch.isnan(loss).any():
             print(f"===Loss value drop to NaN at epoch {iteration+1}, stop training===")
             break
-
     return train_losses, accuracies, train_times
 
 
@@ -98,7 +97,7 @@ def testing_evaluation(model: nn.Module,
             n_correct += (predictions == label).sum().item()
 
         acc = 100.0 * n_correct / n_samples
-        print(f'\n==========Accuracy is {acc:.2f}%==========')
+        print(f'==========Accuracy is {acc:.2f}%==========')
     return acc
 
 
