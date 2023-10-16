@@ -95,7 +95,7 @@ def testing_evaluation(model: nn.Module,
             n_correct += (predictions == label).sum().item()
 
         acc = 100.0 * n_correct / n_samples
-        print(f'==========Accuracy is {acc:.2f}%==========')
+        print(f'\n==========Accuracy is {acc:.2f}%==========')
     return acc
 
 
