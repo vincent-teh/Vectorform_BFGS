@@ -24,11 +24,11 @@ def get_optimizer(model: nn.Module, name: str, param: dict):
     raise ValueError(f'{name} optimizer is not supported yet')
 
 
-def main():
+def main(config_path: str, root_path: str):
     # Hard-coded values
     BATCH_SIZE = 100
 
-    with open('training_config.yml', 'r') as f:
+    with open(os.path.join(config_path, 'training_config.yml'), 'r') as f:
         data = yaml.safe_load(f)
         PATHS = data['Paths']
         datasets = [key for key, value in data['Dataset'].items()
@@ -40,7 +40,7 @@ def main():
         trainloader, n_channel, size_after_pool = \
             model_training.get_dataloader(dataset, PATHS['data'], BATCH_SIZE)
         for optimizer_name, param_set in optimizers.items():    # Train for all optimizers.
-            for _, params in param_set.items():                 # Train for all optimizers' params.
+            for set_name, params in param_set.items():          # Train for all optimizers' params.
                 if not params['Train']:
                     continue
                 model = ConvNet(n_channel, size_after_pool)
@@ -56,13 +56,10 @@ def main():
                                                       verbose=True)
 
                 # File saving after trained for n epochs.
-                filepath = os.path.join(PATHS['results'], optimizer_name)
-                filename = optimizer_name
-                for _, value in params['param'].items():
-                    filename += str(value)
-                filename += '.json'
+                filepath = os.path.join(root_path, PATHS['results'], optimizer_name)
+                filename = os.path.join(root_path, optimizer_name, set_name, '.json')
                 model_training.save_to_json(filepath, filename, losses, accs, times)
 
 
 if __name__ == "__main__":
-    main()
+    main('', '')
