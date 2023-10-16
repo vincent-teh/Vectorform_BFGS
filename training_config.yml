@@ -15,7 +15,7 @@ Optimizer:
         lr: 0.01
 
   Adam:
-    -lr-0.01:
+    lr-0.01:
       Train: True
       epoch: 1
       param:

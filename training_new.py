@@ -56,8 +56,10 @@ def main(config_path: str, root_path: str):
                                                       verbose=True)
 
                 # File saving after trained for n epochs.
+                # {root path}/SGD/
                 filepath = os.path.join(root_path, PATHS['results'], optimizer_name)
-                filename = os.path.join(root_path, optimizer_name, str(set_name), '.json')
+                # {root path}/SGD/lr-0.01.json
+                filename = os.path.join(filepath, str(set_name)+'.json')
                 model_training.save_to_json(filepath, filename, losses, accs, times)
 
 
