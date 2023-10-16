@@ -4,8 +4,8 @@ import os
 import yaml
 
 from model_training import ConvNet
+from conjgrad import ConjGrad
 from torch.optim import SGD, Adam
-import torch.nn as nn
 
 
 def get_optimizer(model: nn.Module, name: str, param: dict):
@@ -21,6 +21,8 @@ def get_optimizer(model: nn.Module, name: str, param: dict):
         return SGD(model.parameters(), **param)
     if name == 'Adam':
         return Adam(model.parameters(), **param)
+    if name == 'cg':
+        return ConjGrad(model.parameters(), **param)
     raise ValueError(f'{name} optimizer is not supported yet')
 
 
