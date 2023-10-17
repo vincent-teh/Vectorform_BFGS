@@ -1,5 +1,8 @@
 import torch
 from torch import Tensor
+from torch.optim import Optimizer
+from typing import Callable, Any
+import two_order_utils as TOU
 
 
 def _cubic_interpolate(x1: Tensor, f1: Tensor, g1: Tensor, x2: Tensor, f2: Tensor, g2: Tensor, bounds=None):
@@ -177,3 +180,56 @@ def _strong_wolfe(obj_func,
     f_new = bracket_f[low_pos]
     g_new = bracket_g[low_pos]
     return f_new, g_new, t, ls_func_evals
+
+def _LineSearch_n_Update(optimizer: Optimizer,
+                         closure: Callable[[], float],
+                         d: Tensor,
+                         g: Tensor,
+                         loss: Any|float,
+                         cond: str = 'StrongWolfe',
+                         max_iter: int = 100) -> None:
+    '''Line search algorithm
+    ------
+    Parameters
+    optimizer (Optimizer) : self, instance of the optimizer in used.
+    closure (function)  : closure fx of standard PyTorch optimizer.
+    d (tensor)  : Single row vector of the descent direction.
+    g (tensor)  : Single row vector of the current gradient.
+    loss (Any|float)  : The output of the fx.
+    cond (str)  : Line search algorithm supported - BackTrack, StrongWolfe.
+    max_iter (int)  : Maximum iteration allowed by the algorithm.
+    ------
+    Return
+    (None)
+    ------
+    Description
+    '''
+    if cond == 'BackTrack':
+        alpha_old = 1
+        gamma = 0.0001
+        beta = 0.8
+        # Right hand side of the condition
+        R = loss + gamma*alpha_old*g.dot(d)
+        optimizer._add_grad(1, d)
+        i = 0
+        while closure() > R and i < max_iter:
+            alpha_new = alpha_old*beta
+            for p in optimizer._params:
+                # p - ((alpha_new - alpha_old)*d)
+                optimizer._add_grad((alpha_new - alpha_old), d)
+            alpha_old = alpha_new
+            i = i + 1
+    elif cond == 'StrongWolfe':
+        alpha = 1
+        x_init = TOU._clone_param(optimizer)
+        # directional derivative
+        gtd = g.dot(d)  # g * d
+
+        def obj_func(x, t, d):
+            return TOU._directional_evaluate(optimizer, closure, x, t, d)
+        loss, g, alpha, ls_func_evals = _strong_wolfe(
+            obj_func, x_init, alpha, d, loss, g, gtd)
+        TOU._add_grad(optimizer, alpha, d)
+        return loss, g, alpha
+    else:
+        raise ValueError("The supplied line search was not supported")

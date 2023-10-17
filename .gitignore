@@ -1,7 +1,5 @@
-conjgrad/__pycache__
+**/__pycache__
+.vscode
 data
 models
-utils/__pycache__
-.vscode
-model_training/__pycache__
 result

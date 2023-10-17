@@ -157,6 +157,7 @@ class ConjGrad(Optimizer):
             loss, g, alpha, ls_func_evals = _strong_wolfe(
                 obj_func, x_init, alpha, d, loss, g, gtd)
             self._add_grad(alpha, d)
+            return loss, g, alpha
         else:
             raise ValueError("The supplied line search was not supported")
 

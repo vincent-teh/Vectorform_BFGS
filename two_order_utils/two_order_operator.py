@@ -98,4 +98,4 @@ def _add_grad(optimizer: Optimizer,
         # view as to avoid deprecated pointwise semantics
         p.add_(update[offset:offset + numel].view_as(p), alpha=step_size)
         offset += numel
-    assert offset == optimizer._numel()
+    assert offset == _numel(optimizer)
