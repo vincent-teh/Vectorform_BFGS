@@ -8,14 +8,18 @@ from torch import linalg as LA
 
 
 class MLBFGS(Optimizer):
-    def __init__(self, params: _params_t) -> None:
-        defaults = {}
+    def __init__(self, params: _params_t, weight_decay: float = 0) -> None:
+        if weight_decay < 0:
+            raise ValueError(f"Weight decay {weight_decay} should greater than 0.")
+        defaults = {'weight_decay': weight_decay}
         super().__init__(params, defaults)
         self._params = self.param_groups[0]['params']
         self._numel_cache = None
 
     def step(self, closure: Callable[[], float] | None = ...) -> float | None:
         epsilon_stop = 1e-6
+        group = self.param_groups[0]
+
         loss = closure()
         if not self.state:      # Initialise during the first iteration
             self.state['step'] = 0
@@ -38,6 +42,8 @@ class MLBFGS(Optimizer):
             return loss
 
         x = TOU._gather_flat_param(self)
+        if group['weight_decay'] > 0:
+            g.add_(x, alpha=group['weight_decay'])
 
         s = self._calc_s(x, x_prev)
         y = self._calc_y(g, g_prev)
