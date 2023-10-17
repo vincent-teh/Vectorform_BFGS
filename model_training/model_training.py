@@ -58,9 +58,8 @@ def train_for_n_epochs(model: nn.Module,
                 return loss
             loss = optimizer.step(closure)
             if isinstance(loss, float):
-                running_loss += loss
-            else:
-                running_loss += loss.item()
+                loss = torch.Tensor([loss,])
+            running_loss += loss.item()
 
             # Print, append the loss value and reset the running loss
             if i % printfreq == printfreq-1:
@@ -71,7 +70,7 @@ def train_for_n_epochs(model: nn.Module,
         print(f'{optimizer.__class__.__name__}\'s loss == {train_losses[-1]}')
         train_times.append(time.time() - start_time) # In second
         accuracies.append(testing_evaluation(model, testing_dataloader))
-        if isinstance(loss, float) and math.isnan(loss) or torch.isnan(loss).any():
+        if torch.isnan(loss).any():
             print(f"===Loss value drop to NaN at epoch {iteration}, stop training===")
             break
     return train_losses, accuracies, train_times
