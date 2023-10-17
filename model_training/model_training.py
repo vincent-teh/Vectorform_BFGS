@@ -55,7 +55,10 @@ def train_for_n_epochs(model: nn.Module,
                 loss.backward()
                 return loss
             loss = optimizer.step(closure)
-            running_loss += loss.item()
+            if isinstance(loss, float):
+                running_loss += loss
+            else:
+                running_loss += loss.item()
 
             # Print, append the loss value and reset the running loss
             if i % printfreq == printfreq-1:
