@@ -3,9 +3,10 @@ import torch.nn as nn
 import os
 import yaml
 
-from model_training import ConvNet
 from conjgrad import ConjGrad
+from model_training import ConvNet
 from torch.optim import SGD, Adam
+from memory_less_bfgs import MLBFGS
 
 
 def get_optimizer(model: nn.Module, name: str, param: dict):
@@ -23,6 +24,8 @@ def get_optimizer(model: nn.Module, name: str, param: dict):
         return Adam(model.parameters(), **param)
     if name == 'cg':
         return ConjGrad(model.parameters(), **param)
+    if name == 'MLBFGS':
+        return MLBFGS(model.parameters())
     raise ValueError(f'{name} optimizer is not supported yet')
 
 
