@@ -155,5 +155,11 @@ def save_to_json(filepath:str,
     if not os.path.exists(filepath):
         os.mkdir(filepath)
     filename = os.path.join(filepath, filename)
-    with open(filename, 'w') as file:
+    i = 0
+    _filename = filename + '-' + str(i) + '.json'
+    while os.path.exists(_filename):
+        i += 1
+        _filename = filename + '-' + str(i) + '.json'
+
+    with open(_filename, 'w') as file:
         json.dump(data, file)

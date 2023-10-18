@@ -63,9 +63,7 @@ def main(config_path: str, root_path: str):
                 # File saving after trained for n epochs.
                 # {root path}/SGD/
                 filepath = os.path.join(root_path, PATHS['results'], optimizer_name)
-                # {root path}/SGD/lr-0.01.json
-                filename = os.path.join(filepath, str(set_name)+'.json')
-                model_training.save_to_json(filepath, filename, losses, accs, times)
+                model_training.save_to_json(filepath, str(set_name), losses, accs, times)
 
 
 if __name__ == "__main__":
