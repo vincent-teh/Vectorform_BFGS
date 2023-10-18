@@ -49,7 +49,7 @@ class MLBFGS(Optimizer):
         y = self._calc_y(g, g_prev)
         beta = self._calc_beta(s, g, y)
         alpha = self._calc_alpha(y, s, beta, g)
-        d = self._calc_d(g, alpha, s, beta, d)
+        d = self._calc_d(g, alpha, s, beta, y)
 
         self.state['x_prev'] = x
         self.state['g_prev'] = g
@@ -74,7 +74,7 @@ class MLBFGS(Optimizer):
         """ alpha = -(1 + y^2 / (s^T * y)) + y^T*g / (s^T*y) """
         return -(1 + _y.dot(_y)/_s.dot(_y).add(1e-8))*_beta + _y.dot(_g)/_s.dot(_y).add(1e-8)
 
-    def _calc_d(self, _g: Tensor, _alpha: float|Tensor, _s: Tensor, _beta: float|Tensor, _d: Tensor
+    def _calc_d(self, _g: Tensor, _alpha: float|Tensor, _s: Tensor, _beta: float|Tensor, _y: Tensor
                 ) -> Tensor:
-        """ d = -g + alpha * s + beta * d """
-        return _g.neg() + _alpha*_s + _beta*_d
+        """ d = -g + alpha * s + beta * y """
+        return _g.neg() + _alpha*_s + _beta*_y
