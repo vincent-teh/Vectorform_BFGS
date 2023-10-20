@@ -95,6 +95,8 @@ def testing_evaluation(model: nn.Module,
     with torch.no_grad():
         print('=========Start of testing for=========.')
         for i, (image, label) in tqdm(enumerate(testing_dataloader)):
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            image, label = image.to(device), label.to(device)
             image.reshape(-1)
             outputs = model(image)
             # value, index
