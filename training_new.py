@@ -1,5 +1,6 @@
 import model_training
 import torch.nn as nn
+import torch
 import os
 import yaml
 
@@ -49,8 +50,9 @@ def main(config_path: str, root_path: str):
                 if not params['Train']:
                     continue
                 model = ConvNet(n_channel, size_after_pool)
-                optimizer = get_optimizer(
-                    model, optimizer_name, params['param'])
+                device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+                model.to(device)
+                optimizer = get_optimizer(model, optimizer_name, params['param'])
                 epoch = params['epoch']
                 print(
                     f'=====Start training {optimizer_name} E{epoch} {params["param"]}=====')
