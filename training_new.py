@@ -26,7 +26,7 @@ def get_optimizer(model: nn.Module, name: str, param: dict):
     if name == 'cg':
         return ConjGrad(model.parameters(), **param)
     if name == 'MLBFGS':
-        return MLBFGS(model.parameters())
+        return MLBFGS(model.parameters(), **param)
     raise ValueError(f'{name} optimizer is not supported yet')
 
 
