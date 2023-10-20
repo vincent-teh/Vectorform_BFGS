@@ -51,8 +51,8 @@ def train_for_n_epochs(model: nn.Module,
         start_time = time.time()
         print(f'Epoch #{iteration}')
         for i, (inputs, labels) in enumerate(training_dataloader):
+            inputs, labels = inputs.to(device), labels.to(device)
             def closure():
-                inputs, labels = inputs.to(device), labels.to(device)
                 outputs = model(inputs)
                 optimizer.zero_grad()
                 loss = criteria(outputs, labels)
