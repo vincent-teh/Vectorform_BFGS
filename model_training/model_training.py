@@ -53,7 +53,7 @@ def train_for_n_epochs(model: nn.Module,
         for i, (inputs, labels) in enumerate(training_dataloader):
             inputs, labels = inputs.to(device), labels.to(device)
             def closure():
-                outputs = model(inputs)
+                outputs = model(inputs,device=device)
                 optimizer.zero_grad()
                 loss = criteria(outputs, labels)
                 loss.backward()
