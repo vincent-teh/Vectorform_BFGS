@@ -46,11 +46,13 @@ def train_for_n_epochs(model: nn.Module,
     train_losses = []
     train_times  = []
     running_loss = 0
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     for iteration in range(1,epoch+1):
         start_time = time.time()
         print(f'Epoch #{iteration}')
         for i, (inputs, labels) in enumerate(training_dataloader):
             def closure():
+                inputs, labels = inputs.to(device), labels.to(device)
                 outputs = model(inputs)
                 optimizer.zero_grad()
                 loss = criteria(outputs, labels)
