@@ -1,7 +1,7 @@
 import torch
 from torch import Tensor
 from torch.optim import Optimizer
-from typing import Callable, Any
+from typing import Any, Callable, Tuple
 import two_order_utils as TOU
 
 
@@ -186,8 +186,8 @@ def _LineSearch_n_Update(optimizer: Optimizer,
                          d: Tensor,
                          g: Tensor,
                          loss: Any|float,
-                         cond: str = 'StrongWolfe',
-                         max_iter: int = 100) -> None:
+                         cond: str | None = 'StrongWolfe',
+                         max_iter: int = 100) -> Tuple[float, Tensor, float]:
     '''Line search algorithm
     ------
     Parameters
@@ -196,30 +196,40 @@ def _LineSearch_n_Update(optimizer: Optimizer,
     d (tensor)  : Single row vector of the descent direction.
     g (tensor)  : Single row vector of the current gradient.
     loss (Any|float)  : The output of the fx.
-    cond (str)  : Line search algorithm supported - BackTrack, StrongWolfe.
+    cond (str | None)  : Line search algorithm supported - BackTrack, StrongWolfe, None to perform update only.
     max_iter (int)  : Maximum iteration allowed by the algorithm.
     ------
     Return
-    (None)
+    Tuple(float, Tensor, float): Loss, Gradient, StepSize(alpha).
     ------
     Description
     '''
+    if cond is None:
+        TOU._add_grad(optimizer, 1, d)
+        loss = closure()
+        return loss, TOU._gather_flat_grad(optimizer), 1
+
     if cond == 'BackTrack':
-        alpha_old = 1
+        alpha = 1
         gamma = 0.0001
         beta = 0.8
         # Right hand side of the condition
-        R = loss + gamma*alpha_old*g.dot(d)
-        optimizer._add_grad(1, d)
+        R = loss + gamma*alpha*g.dot(d)
+        TOU._add_grad(optimizer, 1, d)
         i = 0
-        while closure() > R and i < max_iter:
-            alpha_new = alpha_old*beta
-            for p in optimizer._params:
+        loss = closure()
+        while loss > R and i < max_iter:
+            alpha_new = alpha*beta
+            for _ in optimizer._params:
                 # p - ((alpha_new - alpha_old)*d)
-                optimizer._add_grad((alpha_new - alpha_old), d)
-            alpha_old = alpha_new
+                TOU._add_grad(optimizer, (alpha_new - alpha), d)
+            alpha = alpha_new
             i = i + 1
-    elif cond == 'StrongWolfe':
+            loss = closure()
+        g = TOU._gather_flat_grad(optimizer)
+        return loss, g, alpha
+
+    if cond == 'StrongWolfe':
         alpha = 1
         x_init = TOU._clone_param(optimizer)
         # directional derivative
@@ -231,5 +241,5 @@ def _LineSearch_n_Update(optimizer: Optimizer,
             obj_func, x_init, alpha, d, loss, g, gtd)
         TOU._add_grad(optimizer, alpha, d)
         return loss, g, alpha
-    else:
-        raise ValueError("The supplied line search was not supported")
+
+    raise ValueError(f"The line search {cond} was not supported")
