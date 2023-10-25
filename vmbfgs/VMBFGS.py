@@ -10,13 +10,13 @@ from two_order_utils import _params_t
 
 class VMBFGS(Optimizer):
     def __init__(
-        self, params: _params_t, window_size: int = 3, weight_decay: float = 0
+        self, params: _params_t, max_window_size: int = 3, weight_decay: float = 0
     ) -> None:
         if weight_decay < 0:
             raise ValueError(f"Weight decay {weight_decay} should greater than 0.")
-        if window_size < 1:
-            raise ValueError(f"Memory size {window_size} must be greater than 0")
-        defaults = {"weight_decay": weight_decay, "window_size": window_size}
+        if max_window_size < 1:
+            raise ValueError(f"Memory size {max_window_size} must be greater than 0")
+        defaults = {"weight_decay": weight_decay, "max_window_size": max_window_size}
         super().__init__(params, defaults)
         self._params = self.param_groups[0]["params"]
         self._numel_cache = None
@@ -24,7 +24,7 @@ class VMBFGS(Optimizer):
     def step(self, closure: Callable[[], float] | None = ...) -> float | None:
         epsilon_stop = 1e-6
         group = self.param_groups[0]
-        max_window_size = group["window_size"]
+        max_window_size = group["max_window_size"]
 
         loss = closure()
         if LA.norm(TOU._gather_flat_grad(self)) < epsilon_stop:
