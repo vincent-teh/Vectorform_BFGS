@@ -99,7 +99,7 @@ class VMBFGS(Optimizer):
             self.state["u_prev"] = u
             self.state["v_prev"] = v
             self.state["window_size"] = window_size
-        if window_size == 3:
+        if window_size == max_window_size:
             self.state["s_prev"] = []
             self.state["n_prev"] = []
             self.state["u_prev"] = []
