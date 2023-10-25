@@ -6,9 +6,11 @@ import yaml
 
 from conjgrad import ConjGrad
 from memory_less_bfgs import MLBFGS
-from model_training import ConvNet
+from vmbfgs import VMBFGS
+from model_training import ConvNet, JsonFileSaver, FileSaver, generate_incremental_filename
 from torch.optim import SGD, Adam
-from typing import List, Dict
+from typing import List, Dict, Callable
+from abc import ABC, abstractmethod
 
 
 def get_optimizer(model: nn.Module, name: str, param: dict):
@@ -28,6 +30,8 @@ def get_optimizer(model: nn.Module, name: str, param: dict):
         return ConjGrad(model.parameters(), **param)
     if name == 'MLBFGS':
         return MLBFGS(model.parameters(), **param)
+    if name == "VMBFGS":
+        return VMBFGS(model.parameters(), **param)
     raise ValueError(f'{name} optimizer is not supported yet')
 
 
@@ -42,7 +46,7 @@ def read_yml_file(config_path):
     return datapath, resultpath, datasets, optimizers
 
 
-def training_pipline(data_path: str, result_path: str, datasets: List[str], optimizers):
+def training_pipeline(data_path: str, result_path: str, datasets: List[str], optimizers):
     """
     Standard training pipeline
 
@@ -81,9 +85,51 @@ def training_pipline(data_path: str, result_path: str, datasets: List[str], opti
                 model_training.save_to_json(filepath, str(set_name), losses, accs, times)
 
 
-def main(config_path: str, root_path: str):
+class TrainingPipelineBuilder():
+    """Standard training pipeline for CNN
+    Args:
+        file_saver (FileSaver): Operation in which result was saved, defaults to JSON format with incremental name.
+    """
+    def __init__(self, file_saver: FileSaver = JsonFileSaver()) -> None:
+        self.file_saver = file_saver
+
+    def run(self, data_path: str, result_path: str, datasets: List[str], optimizers):
+        """
+        Args:
+            data_path (str): Paths to which data is stored.
+            result_path (str): Paths to which result is stored
+            datasets (List[str]): List of datasets to be tested.
+            optimizers (_type_): List of optimizer dictionary to be tested.
+        """
+        BATCH_SIZE = 100
+
+        criteria = nn.CrossEntropyLoss()
+        for dataset in datasets:    # Train for all enabled datasets.
+            trainloader, n_channel, size_after_pool = \
+                model_training.get_dataloader(dataset, data_path, BATCH_SIZE)
+            for optimizer_name, param_set in optimizers.items():    # Train for all optimizers.
+                for set_name, params in param_set.items():          # Train for all optimizers' params.
+                    if not params['Train']:
+                        continue
+                    model = ConvNet(n_channel, size_after_pool)
+                    with torch.device("cuda" if torch.cuda.is_available() else "cpu") as device:
+                        model.to(device)
+                    optimizer = get_optimizer(model, optimizer_name, params['param'])
+                    epoch = params['epoch']
+                    print(f'=====Start training {optimizer_name} E{epoch} {params["param"]}=====')
+                    losses, accs, times = model_training.train_for_n_epochs(
+                        model, optimizer, epoch, criteria, trainloader['train'], trainloader['test'], verbose=True)
+
+                    # ================= Saving the files ==================
+                    data = {'losses': losses, 'accs': accs, 'times': times}
+                    filepath = os.path.join(result_path, optimizer_name)
+                    self.file_saver.save(data, filepath, str(set_name))
+
+
+
+def main(config_path: str):
     datapath, resultpath, datasets, optimizers = read_yml_file(config_path)
-    training_pipline(datapath, resultpath, datasets, optimizers)
+    training_pipeline(datapath, resultpath, datasets, optimizers)
 
 if __name__ == "__main__":
-    main('', '')
+    main('')
