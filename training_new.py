@@ -7,6 +7,7 @@ import yaml
 from conjgrad import ConjGrad
 from memory_less_bfgs import MLBFGS
 from model_training import ConvNet, JsonFileSaver, FileSaver, generate_incremental_filename
+from ombfgs import OMBFGS
 from vmbfgs import VMBFGS
 from torch.optim import Adam, SGD, Optimizer
 from typing import List, Dict, Callable
@@ -31,6 +32,8 @@ def get_optimizer(model: nn.Module, name: str, param: dict) -> Optimizer:
         return MLBFGS(model.parameters(), **param)
     if name == "VMBFGS":
         return VMBFGS(model.parameters(), **param)
+    if name == "OMBFGS":
+        return OMBFGS(model.parameters(), **param)
     raise ValueError(f'{name} optimizer is not supported yet')
 
 
