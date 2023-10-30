@@ -27,14 +27,14 @@ class VMBFGS(Optimizer):
         max_window_size = group["max_window_size"]
 
         loss = closure()
-        if LA.norm(TOU._gather_flat_grad(self)) < epsilon_stop:
+        if LA.norm(TOU.gather_flat_grad(self)) < epsilon_stop:
             return loss
 
         if not self.state:
             self.state["step"] = 0
 
-            x_prev = TOU._gather_flat_param(self)
-            g_prev = TOU._gather_flat_grad(self)
+            x_prev = TOU.gather_flat_param(self)
+            g_prev = TOU.gather_flat_grad(self)
 
             s_prev: List[Tensor] = []
             u_prev: List[Tensor] = []
@@ -58,10 +58,10 @@ class VMBFGS(Optimizer):
             d: Tensor = self.state.get("d")
             window_size: int = self.state.get("window_size")
 
-        loss, g, _ = TOU._LineSearch_n_Update(self, closure, d, g_prev, loss)
+        loss, g, _ = TOU.LineSearch_n_Update(self, closure, d, g_prev, loss)
 
         # Calculation for k+1 iteration
-        x = TOU._gather_flat_param(self)
+        x = TOU.gather_flat_param(self)
         if group["weight_decay"] > 0:
             g.add_(x, alpha=group["weight_decay"])
         y = g - g_prev

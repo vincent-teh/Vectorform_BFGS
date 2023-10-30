@@ -181,7 +181,7 @@ def _strong_wolfe(obj_func,
     g_new = bracket_g[low_pos]
     return f_new, g_new, t, ls_func_evals
 
-def _LineSearch_n_Update(optimizer: Optimizer,
+def LineSearch_n_Update(optimizer: Optimizer,
                          closure: Callable[[], float],
                          d: Tensor,
                          g: Tensor,
@@ -207,7 +207,7 @@ def _LineSearch_n_Update(optimizer: Optimizer,
     if cond is None:
         TOU._add_grad(optimizer, 1, d)
         loss = closure()
-        return loss, TOU._gather_flat_grad(optimizer), 1
+        return loss, TOU.gather_flat_grad(optimizer), 1
 
     if cond == 'BackTrack':
         alpha = 1
@@ -226,7 +226,7 @@ def _LineSearch_n_Update(optimizer: Optimizer,
             alpha = alpha_new
             i = i + 1
             loss = closure()
-        g = TOU._gather_flat_grad(optimizer)
+        g = TOU.gather_flat_grad(optimizer)
         return loss, g, alpha
 
     if cond == 'StrongWolfe':

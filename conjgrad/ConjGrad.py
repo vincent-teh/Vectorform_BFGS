@@ -46,7 +46,7 @@ class ConjGrad(Optimizer):
         self._params = self.param_groups[0]['params']
         self._numel_cache = None
 
-    def _gather_flat_grad(self):
+    def gather_flat_grad(self):
         views = []
         for p in self._params:
             if p.grad is None:
@@ -58,7 +58,7 @@ class ConjGrad(Optimizer):
             views.append(view)
         return torch.cat(views, 0)
 
-    def _gather_flat_param(self):
+    def gather_flat_param(self):
         return torch.cat([p.data.view(-1) for p in self._params], 0)
         views = []
         for p in self._params:
@@ -83,7 +83,7 @@ class ConjGrad(Optimizer):
     def _directional_evaluate(self, closure, x, t, d):
         self._add_grad(t, d)
         loss = float(closure())
-        flat_grad = self._gather_flat_grad()
+        flat_grad = self.gather_flat_grad()
         self._set_param(x)
         return loss, flat_grad
 
@@ -110,7 +110,7 @@ class ConjGrad(Optimizer):
             offset += numel
         assert offset == self._numel()
 
-    def _LineSearch_n_Update(self, closure: Callable[[], float],
+    def LineSearch_n_Update(self, closure: Callable[[], float],
                              d: Tensor,
                              g: Tensor,
                              loss: Any,
@@ -208,7 +208,7 @@ class ConjGrad(Optimizer):
 
         if not self.state:      # Initialise during the first iteration
             self.state['step'] = 0
-            g_prev = self._gather_flat_grad()
+            g_prev = self.gather_flat_grad()
             d = g_prev.clone().neg()
             self.state['skip'] = False
         else:
@@ -219,11 +219,11 @@ class ConjGrad(Optimizer):
         group = self.param_groups[0]
 
         if self.state['skip'] == False:
-            _ = self._LineSearch_n_Update(
+            _ = self.LineSearch_n_Update(
                 closure, d, g_prev, loss, cond=group['line_search'])
 
         loss = closure()
-        g = self._gather_flat_grad()
+        g = self.gather_flat_grad()
         if LA.norm(g) < epsilon_stop:   # Skipped update.
             self.state['skip'] = True
             return loss

@@ -9,7 +9,7 @@ from typing import Any, Dict, Iterable, Union
 _params_t = Union[Iterable[Tensor], Iterable[Dict[str, Any]]]
 
 
-def _gather_flat_grad(optimizer: Optimizer):
+def gather_flat_grad(optimizer: Optimizer):
     views = []
     for p in optimizer._params:
         if p.grad is None:
@@ -22,7 +22,7 @@ def _gather_flat_grad(optimizer: Optimizer):
     return torch.cat(views, 0)
 
 
-def _gather_flat_param(optimizer: Optimizer) -> Tensor:
+def gather_flat_param(optimizer: Optimizer) -> Tensor:
     """
     Get flatten parameters of the inputs.
 
@@ -70,7 +70,7 @@ def _directional_evaluate(optimizer: Optimizer, closure, x, t: float, d: Tensor)
     """
     _add_grad(optimizer, t, d)
     loss = float(closure())
-    flat_grad = _gather_flat_grad(optimizer)
+    flat_grad = gather_flat_grad(optimizer)
     _set_param(optimizer, x)
     return loss, flat_grad
 

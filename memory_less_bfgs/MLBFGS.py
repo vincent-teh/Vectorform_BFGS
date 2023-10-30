@@ -20,14 +20,16 @@ class MLBFGS(Optimizer):
         epsilon_stop = 1e-6
         group = self.param_groups[0]
 
+        if not closure:
+            raise ValueError('Closure must be provided and cannot be None.')
         loss = closure()
-        if LA.norm(TOU._gather_flat_grad(self)) < epsilon_stop:
+        if LA.norm(TOU.gather_flat_grad(self)) < epsilon_stop:
             return loss
 
         if not self.state:      # Initialise during the first iteration
             self.state['step'] = 0
-            x_prev = TOU._gather_flat_param(self)
-            g_prev = TOU._gather_flat_grad(self)
+            x_prev = TOU.gather_flat_param(self)
+            g_prev = TOU.gather_flat_grad(self)
             d = g_prev.clone().neg()
             self.state['skip'] = False
         else:
@@ -37,14 +39,14 @@ class MLBFGS(Optimizer):
             d = self.state.get('d')
 
         if not self.state.get('skip'):
-            loss, g, t = TOU._LineSearch_n_Update(self, closure, d, g_prev, loss)
+            loss, g, t = TOU.LineSearch_n_Update(self, closure, d, g_prev, loss)
 
-        # # g = TOU._gather_flat_grad(self)
+        # # g = TOU.gather_flat_grad(self)
         # if LA.norm(g) < epsilon_stop:
         #     self.state['skip'] = True
         #     return loss
 
-        x = TOU._gather_flat_param(self)
+        x = TOU.gather_flat_param(self)
         if group['weight_decay'] > 0:
             g.add_(x, alpha=group['weight_decay'])
 
