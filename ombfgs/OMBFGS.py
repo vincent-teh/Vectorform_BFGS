@@ -51,7 +51,9 @@ class OMBFGS(Optimizer):
             n_prev: list[Tensor] = self.state.get("n_prev")
             d: Tensor = self.state.get("d")
 
-        loss, g, _ = TOU.LineSearch_n_Update(self, closure, d, g_prev, loss)
+        loss, g, alpha = TOU.LineSearch_n_Update(self, closure, d, g_prev, loss)
+        if alpha < 1e-8:
+            return loss
         x = TOU.gather_flat_param(self)
         q = g.clone()
 
