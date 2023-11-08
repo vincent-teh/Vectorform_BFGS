@@ -2,7 +2,7 @@ import two_order_utils as TOU
 
 from torch import linalg as LA
 from torch import Tensor
-from typing import Any, Callable, Dict, Optional
+from typing import Callable
 from torch.optim import Optimizer
 from two_order_utils import _params_t
 
@@ -52,12 +52,12 @@ class OMBFGS(Optimizer):
             d: Tensor = self.state.get("d")
 
         loss, g, alpha = TOU.LineSearch_n_Update(self, closure, d, g_prev, loss)
-        if alpha < 1e-8:
-            return loss
         x = TOU.gather_flat_param(self)
         q = g.clone()
 
         S = self._update_var_array(win_size, s_prev, x - x_prev)
+        if LA.norm(S[-1]) < epsilon_stop:
+            return loss
         Y = self._update_var_array(win_size, y_prev, g - g_prev)
         N = self._update_var_array(win_size, n_prev, S[-1].dot(Y[-1]))
 
@@ -113,3 +113,4 @@ class OMBFGS(Optimizer):
             var.pop(0)
         var.append(new_val)
         return var
+

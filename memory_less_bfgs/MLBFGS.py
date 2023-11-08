@@ -3,7 +3,7 @@ import two_order_utils as TOU
 from torch.optim import Optimizer
 from torch import Tensor
 from two_order_utils import _params_t
-from typing import Any, Callable, Dict, Optional
+from typing import Callable
 from torch import linalg as LA
 
 
@@ -51,6 +51,9 @@ class MLBFGS(Optimizer):
             g.add_(x, alpha=group['weight_decay'])
 
         s = self._calc_s(x, x_prev)
+        if LA.norm(s) < epsilon_stop:
+            return loss
+
         y = self._calc_y(g, g_prev)
         beta = self._calc_beta(s, g, y)
         alpha = self._calc_alpha(y, s, beta, g)
