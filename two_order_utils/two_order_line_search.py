@@ -185,7 +185,7 @@ def LineSearch_n_Update(optimizer: Optimizer,
                          closure: Callable[[], float],
                          d: Tensor,
                          g: Tensor,
-                         loss: Any | float,
+                         loss: float,
                          cond: str | None = 'StrongWolfe',
                          max_iter: int = 100) -> Tuple[float, Tensor, float]:
     '''Line search algorithm
