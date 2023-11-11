@@ -1,7 +1,7 @@
 import torch
 from torch import Tensor
 from torch.optim import Optimizer
-from typing import Any, Callable, Tuple
+from typing import Any, Callable, Optional, Tuple
 import two_order_utils as TOU
 
 
@@ -186,7 +186,7 @@ def LineSearch_n_Update(optimizer: Optimizer,
                          d: Tensor,
                          g: Tensor,
                          loss: float,
-                         cond: str | None = 'StrongWolfe',
+                         cond: Optional[str] = 'StrongWolfe',
                          max_iter: int = 100) -> Tuple[float, Tensor, float]:
     '''Line search algorithm
     ------
