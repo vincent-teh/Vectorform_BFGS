@@ -133,7 +133,7 @@ class DataSetParam:
 DataLoaderMap = {
     "MNIST": DataSetParam(1, torchvision.datasets.MNIST, 784),
     "CIFAR10": DataSetParam(3, torchvision.datasets.CIFAR10, 1024),
-    "FMNIST": DataSetParam(3, torchvision.datasets.FashionMNIST, 784),
+    "FMNIST": DataSetParam(1, torchvision.datasets.FashionMNIST, 784),
 }
 
 
