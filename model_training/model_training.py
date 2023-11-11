@@ -1,17 +1,16 @@
 import json
-import math
-import numpy as np
+from dataclasses import dataclass
 import os
 import time
 import torch
 import torch.nn as nn
 import torchvision
 import torchvision.transforms as Transforms
-
+import torch.utils.data as data
 from torch.optim import Optimizer
-from torch.utils.data.dataloader import DataLoader
+from torch.utils.data import DataLoader
 from tqdm import tqdm
-from typing import Literal, get_args, Dict, List
+from typing import Any, Callable, Literal, List
 
 
 def train_for_n_epochs(model: nn.Module,
@@ -109,33 +108,47 @@ def testing_evaluation(model: nn.Module,
     return acc
 
 
-_DATASET = Literal['MNIST', 'CIFAR10']
+@dataclass
+class DataSetParam:
+    dimension: int
+    dataset_fn: Callable[[Any], torchvision.datasets.VisionDataset]
+    size_after_pool: int
+    path: str = ''
 
-def get_dataloader(dataset: _DATASET, path: str, batch_size: int
-                   ):
+    @property
+    def transform(self):
+        normalize_param = (0.5,) * self.dimension
+        return Transforms.Compose([Transforms.ToTensor(),
+                                    Transforms.Normalize(normalize_param, normalize_param)])
 
-    if dataset not in get_args(_DATASET):
-        raise ValueError(f'Dataset {dataset} not supported')
-    if dataset == 'CIFAR10':
-        transform = Transforms.Compose([Transforms.ToTensor(),
-                                        Transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
-        dimension = 3
-    else:
-        transform = Transforms.Compose([Transforms.ToTensor(),
-                                        Transforms.Normalize((0.5,), (0.5,))])
-        dimension = 1
-    if dataset == "MNIST":
-        dataset_fn = torchvision.datasets.MNIST
-        size_after_pooling = 784
-    elif dataset == 'CIFAR10':
-        dataset_fn = torchvision.datasets.CIFAR10
-        size_after_pooling = 1024
-    train = dataset_fn(root=path, train=True, download=True, transform=transform)
-    test  = dataset_fn(root=path, train=False, download=True, transform=transform)
+    def train(self, path: str) -> torchvision.datasets.VisionDataset:
+        return self.dataset_fn(
+            root=path,train=True, download=True, transform=self.transform) # type: ignore
 
-    return {"train": torch.utils.data.DataLoader(train, batch_size=batch_size),
-            "test":  torch.utils.data.DataLoader(test, batch_size=batch_size)}, \
-            dimension, size_after_pooling
+    def test(self, path: str) -> torchvision.datasets.VisionDataset:
+        return self.dataset_fn(
+            root=path, train=False, download=True, transform=self.transform) # type: ignore
+
+
+DataLoaderMap = {
+    "MNIST": DataSetParam(1, torchvision.datasets.MNIST, 784),
+    "CIFAR10": DataSetParam(3, torchvision.datasets.CIFAR10, 1024),
+    "FMNIST": DataSetParam(3, torchvision.datasets.FashionMNIST, 784),
+}
+
+
+_DATASET = Literal['MNIST', 'CIFAR10', 'FMNIST']
+
+def get_dataloader(
+    dataset: _DATASET, path: str, batch_size: int
+    ) -> tuple[dict[str, data.DataLoader], dict[str, data.DataLoader], int, int]:
+    loader = DataLoaderMap[dataset]
+    train = loader.train(path)
+    test  = loader.test(path)
+    return {"train": data.DataLoader(train, batch_size=batch_size),
+            "test":  data.DataLoader(test, batch_size=batch_size)}, \
+            loader.dimension, \
+            loader.size_after_pool
 
 
 def save_to_json(filepath:str,
