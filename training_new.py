@@ -2,15 +2,16 @@ import model_training
 import torch.nn as nn
 import torch
 import os
+import sys
 import yaml
 
 from conjgrad import ConjGrad
 from memory_less_bfgs import MLBFGS
-from model_training import ConvNet, JsonFileSaver, FileSaver, generate_incremental_filename
+from model_training import ConvNet
 from ombfgs import OMBFGS
 from vmbfgs import VMBFGS
 from torch.optim import Adam, SGD, Optimizer
-from typing import List, Dict, Callable
+from typing import List, Type
 
 
 def get_optimizer(model: nn.Module, name: str, param: dict) -> Optimizer:
@@ -22,19 +23,19 @@ def get_optimizer(model: nn.Module, name: str, param: dict) -> Optimizer:
         name (str): Name of the optimizer.
         param (dict): Dictionary of parameters of the optimizer.
     """
-    if name == 'SGD':
-        return SGD(model.parameters(), **param)
-    if name == 'Adam':
-        return Adam(model.parameters(), **param)
-    if name == 'cg':
-        return ConjGrad(model.parameters(), **param)
-    if name == 'MLBFGS':
-        return MLBFGS(model.parameters(), **param)
-    if name == "VMBFGS":
-        return VMBFGS(model.parameters(), **param)
-    if name == "OMBFGS":
-        return OMBFGS(model.parameters(), **param)
-    raise ValueError(f'{name} optimizer is not supported yet')
+    optimizer_map: dict[str, Type[Optimizer]] = {
+        'SGD': SGD,
+        'Adam': Adam,
+        'cg': ConjGrad,
+        'MLBFGS': MLBFGS,
+        "VMBFGS": VMBFGS,
+        "OMBFGS": OMBFGS
+    }
+    if name not in optimizer_map:
+        raise ValueError(f'{name} optimizer is not supported yet')
+
+    optimizer_constructor = optimizer_map[name]
+    return optimizer_constructor(model.parameters(), **param)
 
 
 def read_yml_file(config_path):
@@ -87,9 +88,13 @@ def training_pipeline(data_path: str, result_path: str, datasets: List[str], opt
                 model_training.save_to_json(filepath, str(set_name), losses, accs, times)
 
 
-def main(config_path: str):
+def main() -> None:
+    if sys.argv[1]:
+        config_path = sys.argv[1]
+    else:
+        config_path = ''
     datapath, resultpath, datasets, optimizers = read_yml_file(config_path)
     training_pipeline(datapath, resultpath, datasets, optimizers)
 
 if __name__ == "__main__":
-    main('')
+    main()
