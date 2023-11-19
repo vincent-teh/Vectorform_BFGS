@@ -50,7 +50,7 @@ def read_yml_file(config_path: str):
     return datapath, resultpath, datasets, optimizers
 
 
-def training_pipeline(data_path: str, result_path: str, datasets: List[str], optimizers):
+def training_pipeline(data_path: str, result_path: str, datasets: List[str], optimizers, batch_size: int = 100):
     """
     Standard training pipeline
 
@@ -60,12 +60,11 @@ def training_pipeline(data_path: str, result_path: str, datasets: List[str], opt
         datasets (List[str]): List of datasets to be tested.
         optimizers (_type_): List of optimizer dictionary to be tested.
     """
-    BATCH_SIZE = 100
 
     criteria = nn.CrossEntropyLoss()
     for dataset in datasets:    # Train for all enabled datasets.
         trainloader, n_channel, size_after_pool = \
-            model_training.get_dataloader(dataset, data_path, BATCH_SIZE)
+            model_training.get_dataloader(dataset, data_path, batch_size)
         for optimizer_name, param_set in optimizers.items():    # Train for all optimizers.
             for set_name, params in param_set.items():          # Train for all optimizers' params.
                 if not params['Train']:
