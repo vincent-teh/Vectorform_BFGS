@@ -10,7 +10,7 @@ from memory_less_bfgs import MLBFGS
 from model_training import ConvNet
 from ombfgs import OMBFGS
 from vmbfgs import VMBFGS
-from torch.optim import Adam, SGD, Optimizer
+from torch.optim import Adam, LBFGS, Optimizer, SGD
 from typing import List, Type
 
 
@@ -29,7 +29,8 @@ def get_optimizer(model: nn.Module, name: str, param: dict) -> Optimizer:
         'cg': ConjGrad,
         'MLBFGS': MLBFGS,
         "VMBFGS": VMBFGS,
-        "OMBFGS": OMBFGS
+        "OMBFGS": OMBFGS,
+        "LMBFGS": LBFGS
     }
     if name not in optimizer_map:
         raise ValueError(f'{name} optimizer is not supported yet')
@@ -38,7 +39,7 @@ def get_optimizer(model: nn.Module, name: str, param: dict) -> Optimizer:
     return optimizer_constructor(model.parameters(), **param)
 
 
-def read_yml_file(config_path):
+def read_yml_file(config_path: str):
     with open(os.path.join(config_path, 'training_config.yml'), 'r') as f:
         data = yaml.safe_load(f)
         datapath = data['Paths'].get('data')
