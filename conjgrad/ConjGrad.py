@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict, get_args, Iterable, Literal, Optional, Union
+from typing import Any, Callable, Dict, get_args, Iterable, Literal, Union
 
 import torch
 from torch.optim import Optimizer
