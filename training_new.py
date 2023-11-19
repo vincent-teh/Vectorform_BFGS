@@ -30,7 +30,7 @@ def get_optimizer(model: nn.Module, name: str, param: dict) -> Optimizer:
         'MLBFGS': MLBFGS,
         "VMBFGS": VMBFGS,
         "OMBFGS": OMBFGS,
-        "LMBFGS": LBFGS
+        "LBFGS": LBFGS
     }
     if name not in optimizer_map:
         raise ValueError(f'{name} optimizer is not supported yet')
