@@ -5,11 +5,15 @@
 This is where the installation manual and usage goes.
 
 
-### Project structure
+### Class Relationship
 ```mermaid
 flowchart TD
-    A[Optimizer] --> B[bfgs_base_optimizer];
-    
+    A[Optimizer] --> B[BfgsBaseOptimizer];
+    B[BfgsBaseOptimizer] --> C[ConjGrad];
+    B[BfgsBaseOptimizer] --> D[MLBFGS];
+    B[BfgsBaseOptimizer] --> E[VMBFGS];
+    B[BfgsBaseOptimizer] --> F[OMBFGS];
+
 ```
 
 ### Abstract
