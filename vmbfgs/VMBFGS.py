@@ -1,40 +1,37 @@
 import torch
-import two_order_utils as TOU
 
 from torch import linalg as LA
 from torch.optim import Optimizer
 from torch import Tensor
 from typing import Any, Callable, Dict, List, Optional
-from two_order_utils import _params_t
+from bfgs_base import BfgsBaseOptimizer
 
-
-class VMBFGS(Optimizer):
+class VMBFGS(BfgsBaseOptimizer):
     def __init__(
-        self, params: _params_t, max_window_size: int = 3, weight_decay: float = 0
+        self, params, max_window_size: int = 3, weight_decay: float = 0
     ) -> None:
         if weight_decay < 0:
             raise ValueError(f"Weight decay {weight_decay} should greater than 0.")
         if max_window_size < 1:
             raise ValueError(f"Memory size {max_window_size} must be greater than 0")
+
         defaults = {"weight_decay": weight_decay, "max_window_size": max_window_size}
         super().__init__(params, defaults)
-        self._params = self.param_groups[0]["params"]
-        self._numel_cache = None
 
-    def step(self, closure: Callable[[], float] | None = ...) -> float | None:
+    def step(self, closure: Callable[[], float]) -> float:
         epsilon_stop = 1e-6
         group = self.param_groups[0]
         max_window_size = group["max_window_size"]
 
         loss = closure()
-        if LA.norm(TOU.gather_flat_grad(self)) < epsilon_stop:
+        if LA.norm(self.gather_flat_grad()) < epsilon_stop:
             return loss
 
         if not self.state:
             self.state["step"] = 0
 
-            x_prev = TOU.gather_flat_param(self)
-            g_prev = TOU.gather_flat_grad(self)
+            x_prev = self.gather_flat_param()
+            g_prev = self.gather_flat_grad()
 
             s_prev: List[Tensor] = []
             u_prev: List[Tensor] = []
@@ -58,10 +55,10 @@ class VMBFGS(Optimizer):
             d: Tensor = self.state.get("d")
             window_size: int = self.state.get("window_size")
 
-        loss, g, _ = TOU.LineSearch_n_Update(self, closure, d, g_prev, loss)
+        loss, g, _ = self.update(closure, d, g_prev, loss)
 
         # Calculation for k+1 iteration
-        x = TOU.gather_flat_param(self)
+        x = self.gather_flat_param()
         if group["weight_decay"] > 0:
             g.add_(x, alpha=group["weight_decay"])
         y = g - g_prev
@@ -109,7 +106,7 @@ class VMBFGS(Optimizer):
         return loss
 
     def _calc_b(
-        self, var: List[Tensor], s: List[Tensor], n: List[float], window_size: int
+        self, var: Tensor, s: List[Tensor], n: List[float], window_size: int
     ) -> List[float]:
         """Calculate the value of b for ONE iteration."""
         b = []
@@ -120,7 +117,7 @@ class VMBFGS(Optimizer):
     def _calc_a(
         self,
         u: List[Tensor],
-        var: List[Tensor],
+        var: Tensor,
         n: List[float],
         v: List[Tensor],
         b: List[Tensor],

@@ -11,7 +11,7 @@ class MLBFGS(BfgsBaseOptimizer):
         defaults = {'weight_decay': weight_decay}
         super().__init__(params, defaults)
 
-    def step(self, closure: Callable[[], float] | None = ...) -> float | None:
+    def step(self, closure: Callable[[], float]) -> float:
         epsilon_stop = 1e-6
         group = self.param_groups[0]
 
@@ -30,7 +30,7 @@ class MLBFGS(BfgsBaseOptimizer):
         else:
             self.state['step'] += 1
             x_prev = self.state.get('x_prev')
-            g_prev = self.state.get('g_prev')
+            g_prev= self.state.get('g_prev')
             d = self.state.get('d')
 
         if not self.state.get('skip'):

@@ -1,37 +1,34 @@
-import two_order_utils as TOU
-
 from torch import linalg as LA
 from torch import Tensor
 from typing import Callable
 from torch.optim import Optimizer
-from two_order_utils import _params_t
+from bfgs_base import BfgsBaseOptimizer
 
-
-class OMBFGS(Optimizer):
-    def __init__(self, params: _params_t, window_size: int = 3, weight_decay: float = 0) -> None:
+class OMBFGS(BfgsBaseOptimizer):
+    def __init__(self, params, window_size: int = 3, weight_decay: float = 0) -> None:
         if window_size < 1:
             raise ValueError("Window size must be greater than 1.")
         if weight_decay < 0:
             raise ValueError(f"Weight decay {weight_decay} should greater than 0.")
+
         defaults = {"window_size": window_size,
                     "weight_decay": weight_decay}
         super().__init__(params, defaults)
-        self._params = self.param_groups[0]["params"]
-        self._numel_cache = None
 
-    def step(self, closure: Callable[[], float] | None = ...) -> float | None:
+
+    def step(self, closure: Callable[[], float]) -> float:
         epsilon_stop = 1e-6
         if not closure:
             raise ValueError("Closure must be provided and cannot be None")
         loss = closure()
-        if LA.norm(TOU.gather_flat_grad(self)) < epsilon_stop:
+        if LA.norm(self.gather_flat_grad()) < epsilon_stop:
             return loss
 
         if not self.state:
             self.state["step"] = 0
 
-            x_prev = TOU.gather_flat_param(self)
-            g_prev = TOU.gather_flat_grad(self)
+            x_prev = self.gather_flat_param()
+            g_prev = self.gather_flat_grad()
 
             s_prev: list[Tensor] = []
             y_prev: list[Tensor] = []
@@ -51,8 +48,8 @@ class OMBFGS(Optimizer):
             n_prev: list[Tensor] = self.state.get("n_prev")
             d: Tensor = self.state.get("d")
 
-        loss, g, alpha = TOU.LineSearch_n_Update(self, closure, d, g_prev, loss)
-        x = TOU.gather_flat_param(self)
+        loss, g, alpha = self.update(closure, d, g_prev, loss)
+        x = self.gather_flat_param()
         q = g.clone()
 
         S = self._update_var_array(win_size, s_prev, x - x_prev)

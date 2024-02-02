@@ -6,8 +6,7 @@ from torch.optim.lbfgs import _strong_wolfe
 from functools import reduce
 from torch import Tensor
 from torch import linalg as LA
-
-from two_order_utils import _strong_wolfe
+from bfgs_base import BfgsBaseOptimizer
 
 
 _LIST_VARIANTS = Literal['FR', 'PRP', 'DY', 'HS']
@@ -15,7 +14,7 @@ _LIST_LINE_SEARCH = Literal["BackTrack", "StrongWolfe"]
 _params_t = Union[Iterable[Tensor], Iterable[Dict[str, Any]]]
 
 
-class ConjGrad(Optimizer):
+class ConjGrad(BfgsBaseOptimizer):
     def __init__(self, params: _params_t,
                  variant: _LIST_VARIANTS = 'PRP',
                  weight_decay: float = 0,
@@ -29,141 +28,22 @@ class ConjGrad(Optimizer):
             line_search (_LIST_LINE_SEARCH, optional): Line search algorithm to be used. Defaults to 'StrongWolfe'.
         """
         if variant not in get_args(_LIST_VARIANTS):
-            raise ValueError(
-                f'Variant must be of type {get_args(_LIST_VARIANTS)}')
+            raise ValueError(f'Variant must be of type {get_args(_LIST_VARIANTS)}')
         if line_search not in get_args(_LIST_LINE_SEARCH):
-            raise ValueError(
-                f'Line search must be of type {get_args(_LIST_VARIANTS)}')
+            raise ValueError(f'Line search must be of type {get_args(_LIST_VARIANTS)}')
         if weight_decay < 0:
-            raise ValueError(
-                f"Invalid weight decay value {weight_decay}. Must be positive.")
+            raise ValueError(f"Invalid weight decay value {weight_decay}. Must be positive.")
 
         defaults = {'variant': variant,
                     'line_search': line_search,
-                    'weight_decay': weight_decay}
-
+                    'weight_decay': weight_decay
+                   }
         super().__init__(params, defaults)
-        self._params = self.param_groups[0]['params']
-        self._numel_cache = None
 
-    def gather_flat_grad(self):
-        views = []
-        for p in self._params:
-            if p.grad is None:
-                view = p.new(p.numel()).zero_()
-            elif p.grad.is_sparse:
-                view = p.grad.to_dense().view(-1)
-            else:
-                view = p.grad.view(-1)
-            views.append(view)
-        return torch.cat(views, 0)
 
-    def gather_flat_param(self):
-        return torch.cat([p.data.view(-1) for p in self._params], 0)
-        views = []
-        for p in self._params:
-            view = p.data.view(-1)
-            views.append(view)
-        return torch.cat(views, 0)
-
-    def _numel(self):
-        if self._numel_cache is None:
-            self._numel_cache = reduce(
-                lambda total, p: total + p.numel(), self._params, 0)
-        return self._numel_cache
-
-    def _clone_param(self):
-        return [p.clone(memory_format=torch.contiguous_format) for p in self._params]
-
-    @torch.no_grad()
-    def _set_param(self, params_data):
-        for p, pdata in zip(self._params, params_data):
-            p.copy_(pdata)
-
-    def _directional_evaluate(self, closure, x, t, d):
-        self._add_grad(t, d)
-        loss = float(closure())
-        flat_grad = self.gather_flat_grad()
-        self._set_param(x)
-        return loss, flat_grad
-
-    @torch.no_grad()
-    def _add_grad(self, step_size: float, update: Tensor) -> None:
-        '''Parameters update for flatten gradient
-        ------
-        Parameters
-        step_size (float)   : Alpha value of the updates.
-        update (Tensor)     : The descent direction used for updates.
-        ------
-        Return
-            None
-        '''
-        offset = 0
-        for p in self._params:
-            numel = p.numel()
-            # Assert if step size is a number
-            # if not isinstance(step_size, (int, float, complex)):
-            if isinstance(step_size, (Tensor,)) and step_size.numel() == 1:
-                step_size = step_size.data
-            # view as to avoid deprecated pointwise semantics
-            p.add_(update[offset:offset + numel].view_as(p), alpha=step_size)
-            offset += numel
-        assert offset == self._numel()
-
-    def LineSearch_n_Update(self, closure: Callable[[], float],
-                             d: Tensor,
-                             g: Tensor,
-                             loss: Any,
-                             cond: str = 'BackTrack',
-                             max_iter: int = 100) -> None:
-        '''Line search algorithm
-        ------
-        Parameters
-        closure (function)  : closure fx of standard PyTorch optimizer.
-        d (tensor)  : Single row vector of the descent direction.
-        g (tensor)  : Single row vector of the current gradient.
-        loss (Any)  : The output of the fx.
-        cond (str)  : Line search algorithm supported - BackTrack, StrongWolfe.
-        max_iter (int)  : Maximum iteration allowed by the algorithm.
-        ------
-        Return
-        (None)
-        ------
-        Description
-        '''
-        if cond == 'BackTrack':
-            alpha_old = 1
-            gamma = 0.0001
-            beta = 0.8
-            # Right hand side of the condition
-            R = loss + gamma*alpha_old*g.dot(d)
-            self._add_grad(1, d)
-            i = 0
-            while closure() > R and i < max_iter:
-                alpha_new = alpha_old*beta
-                for p in self._params:
-                    # p - ((alpha_new - alpha_old)*d)
-                    self._add_grad((alpha_new - alpha_old), d)
-                alpha_old = alpha_new
-                i = i + 1
-        elif cond == 'StrongWolfe':
-            alpha = 1
-            x_init = self._clone_param()
-            # directional derivative
-            gtd = g.dot(d)  # g * d
-
-            def obj_func(x, t, d):
-                return self._directional_evaluate(closure, x, t, d)
-            loss, g, alpha, ls_func_evals = _strong_wolfe(
-                obj_func, x_init, alpha, d, loss, g, gtd)
-            self._add_grad(alpha, d)
-            return loss, g, alpha
-        else:
-            raise ValueError("The supplied line search was not supported")
-
-    def _CalcStepSize(self, g: Tensor,
+    def _calc_step_size(self, g: Tensor,
                       g_prev: Tensor,
-                      d: Tensor = None,
+                      d: Tensor | None = None,
                       epsilon: float = 1e-5,
                       option: str = 'PR') -> float:
         '''CG Momentum Calculation
@@ -192,9 +72,9 @@ class ConjGrad(Optimizer):
             beta = g.dot(y) / (d.dot(y) + epsilon)
         else:
             raise ValueError("The supplied CG variant is not supported.")
-        return max(beta, 0)
+        return max(int(beta), 0)
 
-    def step(self, closure: Callable[[], float] | None = ...) -> float | None:
+    def step(self, closure: Callable[[], float]) -> float:
         ''' Conjugate Gradient Steps
         ----------------------------
         Constants
@@ -219,7 +99,7 @@ class ConjGrad(Optimizer):
         group = self.param_groups[0]
 
         if self.state['skip'] == False:
-            _ = self.LineSearch_n_Update(
+            _ = self.update(
                 closure, d, g_prev, loss, cond=group['line_search'])
 
         loss = closure()
@@ -228,12 +108,10 @@ class ConjGrad(Optimizer):
             self.state['skip'] = True
             return loss
         if group['weight_decay'] > 0:
-            def gather_flat_param(): return torch.cat(
-                [p.data.view(-1) for p in self._params], 0)
-            g.add_(gather_flat_param(), alpha=group['weight_decay'])
+            g.add_(self.gather_flat_param(), alpha=group['weight_decay'])
 
         self.state['skip'] = False
-        beta = self._CalcStepSize(g, g_prev, d, option=group['variant'])
+        beta = self._calc_step_size(g, g_prev, d, option=group['variant'])
         d = g.neg() + beta*d
         self.state['d'] = d
         self.state['g'] = g
